@@ -775,30 +775,34 @@ elif page == "CRUD Operations":
 
     import mysql.connector
     from mysql.connector import Error
+    import pandas as pd
 
 
     # --- MySQL Connection ---
     def get_connection():
         return mysql.connector.connect(
-            host="localhost",  # replace with your host
-            user="root",  # replace with your username
-            password="1234",  # replace with your password
-            database="cricbuzz"  # replace with your database
+            host="localhost",
+            user="root",
+            password="1234",
+            database="cricbuzz"
         )
 
 
-    # Create table if it doesn't exist
+    # --- Create table if it doesn't exist ---
     def create_table():
         try:
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS players (
+                CREATE TABLE IF NOT EXISTS players1 (
                     id VARCHAR(20) PRIMARY KEY,
                     name VARCHAR(100),
+                    player_type VARCHAR(20),  -- 'Batsman' or 'Bowler'
                     matches INT,
                     runs INT,
-                    average FLOAT
+                    average FLOAT,
+                    wickets INT,
+                    economy_rate FLOAT
                 )
             """)
             conn.commit()
@@ -812,17 +816,24 @@ elif page == "CRUD Operations":
 
     # --- CRUD Operations ---
     st.write("Select an operation and manage player records.")
-
     operation = st.selectbox("Select Operation", ["CREATE", "READ", "UPDATE", "DELETE"])
 
-    # CREATE
+    # ---------------- CREATE ----------------
     if operation == "CREATE":
         st.subheader("Add New Player")
+
         player_id = st.text_input("Player ID")
         name = st.text_input("Player Name")
+        player_type = st.selectbox("Player Type", ["Batsman", "Bowler"])
         matches = st.number_input("Matches Played", min_value=0, step=1)
-        runs = st.number_input("Runs Scored", min_value=0, step=1)
-        average = st.number_input("Batting Average", min_value=0.0, step=0.1)
+
+        # Stats for Batsman
+        runs = st.number_input("Runs Scored", min_value=0, step=1) if player_type == "Batsman" else 0
+        average = st.number_input("Batting Average", min_value=0.0, step=0.1) if player_type == "Batsman" else 0.0
+
+        # Stats for Bowler
+        wickets = st.number_input("Wickets Taken", min_value=0, step=1) if player_type == "Bowler" else 0
+        economy_rate = st.number_input("Economy Rate", min_value=0.0, step=0.1) if player_type == "Bowler" else 0.0
 
         if st.button("Add Player"):
             if player_id.strip() == "" or name.strip() == "":
@@ -832,9 +843,9 @@ elif page == "CRUD Operations":
                     conn = get_connection()
                     cursor = conn.cursor()
                     cursor.execute("""
-                        INSERT INTO players (id, name, matches, runs, average)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (player_id, name, matches, runs, average))
+                        INSERT INTO players1 (id, name, player_type, matches, runs, average, wickets, economy_rate)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (player_id, name, player_type, matches, runs, average, wickets, economy_rate))
                     conn.commit()
                     st.success(f"Player {name} added successfully!")
                     cursor.close()
@@ -842,41 +853,55 @@ elif page == "CRUD Operations":
                 except Error as e:
                     st.error(f"Error: {e}")
 
-    # READ
+    # ---------------- READ ----------------
     elif operation == "READ":
         st.subheader("View Player Records")
         try:
             conn = get_connection()
-            df = pd.read_sql("SELECT * FROM players", conn)
+            df = pd.read_sql("SELECT * FROM players1", conn)
             st.dataframe(df)
             conn.close()
         except Error as e:
             st.error(f"Error: {e}")
 
-    # UPDATE
+    # ---------------- UPDATE ----------------
     elif operation == "UPDATE":
         st.subheader("Update Player")
         try:
             conn = get_connection()
-            df = pd.read_sql("SELECT id, name FROM players", conn)
+            df = pd.read_sql("SELECT id, name, player_type, matches, runs, average, wickets, economy_rate FROM players1",
+                             conn)
             conn.close()
+
             player_to_update = st.selectbox("Select Player to Update", df['id'] + " - " + df['name'])
             player_id = player_to_update.split(" - ")[0]
 
-            name = st.text_input("Player Name")
-            matches = st.number_input("Matches Played", min_value=0, step=1)
-            runs = st.number_input("Runs Scored", min_value=0, step=1)
-            average = st.number_input("Batting Average", min_value=0.0, step=0.1)
+            # Pre-fill existing values
+            player_data = df[df['id'] == player_id].iloc[0]
+            player_type = st.selectbox("Player Type", ["Batsman", "Bowler"],
+                                       index=["Batsman", "Bowler"].index(player_data['player_type']))
+            name = st.text_input("Player Name", player_data['name'])
+            matches = st.number_input("Matches Played", min_value=0, step=1, value=int(player_data['matches']))
+
+            runs = st.number_input("Runs Scored", min_value=0, step=1,
+                                   value=int(player_data['runs'])) if player_type == "Batsman" else 0
+            average = st.number_input("Batting Average", min_value=0.0, step=0.1,
+                                      value=float(player_data['average'])) if player_type == "Batsman" else 0.0
+
+            wickets = st.number_input("Wickets Taken", min_value=0, step=1,
+                                      value=int(player_data['wickets'])) if player_type == "Bowler" else 0
+            economy_rate = st.number_input("Economy Rate", min_value=0.0, step=0.1,
+                                           value=float(player_data['economy_rate'])) if player_type == "Bowler" else 0.0
 
             if st.button("Update Player"):
                 try:
                     conn = get_connection()
                     cursor = conn.cursor()
                     cursor.execute("""
-                        UPDATE players
-                        SET name=%s, matches=%s, runs=%s, average=%s
+                        UPDATE players1
+                        SET name=%s, player_type=%s, matches=%s, runs=%s, average=%s, wickets=%s, economy_rate=%s
                         WHERE id=%s
-                    """, (name, matches, runs, average, player_id))
+                    """, (name, player_type, matches, runs, average, wickets, economy_rate, player_id))
                     conn.commit()
                     st.success(f"Player {player_id} updated successfully!")
                     cursor.close()
@@ -886,13 +911,14 @@ elif page == "CRUD Operations":
         except Error as e:
             st.error(f"Error fetching players: {e}")
 
-    # DELETE
+    # ---------------- DELETE ----------------
     elif operation == "DELETE":
         st.subheader("Delete Player")
         try:
             conn = get_connection()
-            df = pd.read_sql("SELECT id, name FROM players", conn)
+            df = pd.read_sql("SELECT id, name FROM players1", conn)
             conn.close()
+
             player_to_delete = st.selectbox("Select Player to Delete", df['id'] + " - " + df['name'])
             player_id = player_to_delete.split(" - ")[0]
 
@@ -900,7 +926,7 @@ elif page == "CRUD Operations":
                 try:
                     conn = get_connection()
                     cursor = conn.cursor()
-                    cursor.execute("DELETE FROM players WHERE id=%s", (player_id,))
+                    cursor.execute("DELETE FROM players1 WHERE id=%s", (player_id,))
                     conn.commit()
                     st.success(f"Player {player_id} deleted successfully!")
                     cursor.close()
