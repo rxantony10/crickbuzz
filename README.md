@@ -1,21 +1,5 @@
-Overview:
-🌐 API Integration
-Utilize Cricbuzz Cricket API via REST
-Implement Python's requests library for data fetching
-Handle real-time match data, player stats, and series information
-🖥️ Interactive Dashboard
-Multi-page web application using Streamlit
-Live scorecards and statistics visualization
-Custom SQL query interface
-Administrative CRUD operations
-🗄️ SQL Database Integration
-Database-agnostic design (PostgreSQL, MySQL, SQLite)
-Centralized connection handling in utils/db_connection.py
-Optimized queries for performance
-⚙️ CRUD Operations
-Form-based UI for data manipulation
-Add, update, and delete player records
-
+Cricbuzz_LiveStats
+Build a comprehensive cricket analytics dashboard that integrates live data from the Cricbuzz API with a SQL database to create an interactive web application.
 _______________________________________________________________________________
 🛠️ Tech Stack
 
